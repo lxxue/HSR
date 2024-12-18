@@ -1,0 +1,18 @@
+hydra:
+  run:
+    dir: ${result_root}/${dataset.train.subject}/${model.name}/${version}
+  job:
+    chdir: true
+
+defaults:
+  - model: hsr
+  - dataset: real_demo
+  - _self_
+
+data_root: /path_to_HSR/data
+result_root: /path_to_HSR/result
+version: null
+test_only: False
+predict: False
+ckpt_path: null
+wandb: True 

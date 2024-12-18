@@ -1,0 +1,8 @@
+**/__pycache__/
+data/
+result/
+build/
+hsr/checkpoints/smpl_body_models/
+hsr.egg-info/
+hsr/utils/libmise/mise.cpython*
+hsr/utils/libmise/mise.cpp
