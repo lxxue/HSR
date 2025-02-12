@@ -353,14 +353,6 @@ class HSRNetwork(nn.Module):
             # calculate entropy for uncertainty measure
             fg_weights = rendering_outputs["fg_weights"]
             fg_weights = rearrange(fg_weights, "bn m 1 -> bn m")
-            entropy = torch.distributions.Categorical(probs=fg_weights + 1e-12).entropy()
-            negative_entropy = -entropy
-            # maximum entropy: -1/b * np.log(1/b) * b with b = 162 (128 + 32 + 2)
-            negative_entropy /= 5.087
-            # map from [-1, 0] to [0, 1]
-            negative_entropy += 1.0
-            negative_entropy[torch.sum(fg_weights, 1) < 0.9] = 0.0
-            negative_entropy = rearrange(negative_entropy, "(b n) -> b n", b=batch_size)
             output = {
                 "fg_acc_map": fg_acc_map,
                 "bg_acc_map": bg_acc_map,
@@ -373,7 +365,6 @@ class HSRNetwork(nn.Module):
                 "depth": depth,
                 "fg_depth": fg_depth,
                 "bg_depth": bg_depth,
-                "negative_entropy": negative_entropy,
             }
         return output
 
@@ -876,7 +867,6 @@ class HSR(pl.LightningModule):
                     "rgb": out["rgb"].detach(),
                     "fg_rgb": out["fg_rgb"].detach(),
                     "bg_rgb": out["bg_rgb"].detach(),
-                    "negative_entropy": out["negative_entropy"].detach(),
                     "fg_acc_map": out["fg_acc_map"].detach(),
                     "normal": out["normal"].detach(),
                     "fg_normal": out["fg_normal"].detach(),
@@ -903,7 +893,6 @@ class HSR(pl.LightningModule):
                 "fg_depth_pred": model_outputs["fg_depth"].detach(),
                 "bg_depth_pred": model_outputs["bg_depth"].detach(),
                 "fg_acc_map": model_outputs["fg_acc_map"].detach(),
-                "negative_entropy": model_outputs["negative_entropy"].detach(),
                 **targets,
             }
         )
@@ -971,14 +960,6 @@ class HSR(pl.LightningModule):
         fg_acc_map = fg_acc_map.repeat(1, 1, 3)
         fg_acc_map = torch.cat([rgb_gt * fg_acc_map, fg_acc_map], dim=concat_dim).cpu().numpy()
         fg_acc_map = (fg_acc_map * 255).astype(np.uint8)
-
-        negative_entropy = output["negative_entropy"]
-        negative_entropy = negative_entropy.reshape(*img_size, -1)
-        negative_entropy = negative_entropy.repeat(1, 1, 3)
-        negative_entropy = (
-            torch.cat([rgb_gt * negative_entropy, negative_entropy], dim=concat_dim).cpu().numpy()
-        )
-        negative_entropy = (negative_entropy * 255).astype(np.uint8)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         rgb_pred = torch.moveaxis(rgb_pred, -1, 0)[None, ...]
@@ -1178,7 +1159,6 @@ class HSR(pl.LightningModule):
                     "fg_depth_pred": model_outputs["fg_depth"].detach(),
                     "bg_depth_pred": model_outputs["bg_depth"].detach(),
                     "fg_acc_map": model_outputs["fg_acc_map"].detach(),
-                    "negative_entropy": model_outputs["negative_entropy"].detach(),
                     **batch_targets,
                 }
             )
@@ -1206,10 +1186,6 @@ class HSR(pl.LightningModule):
         fg_mask = fg_mask.reshape(*img_size, -1)
         fg_mask = fg_mask.repeat(1, 1, 3)
 
-        negative_entropy = torch.cat([result["negative_entropy"][0] for result in results], dim=0)
-        negative_entropy = negative_entropy.reshape(*img_size, -1)
-        negative_entropy = negative_entropy.repeat(1, 1, 3)
-
         h, w = img_size
         concat_dim = 1 if h > w else 0
 
@@ -1220,15 +1196,11 @@ class HSR(pl.LightningModule):
         rgb_error = self.sequential_colormap(rgb_error.cpu().numpy())[:, :, :3]
         # scale it up for better visualization
         rgb_error *= 5
-        # rgb = torch.cat([rgb_gt, rgb_pred], dim=concat_dim).cpu().numpy()
-        rgb = np.concatenate([rgb, rgb_error], axis=concat_dim)
+        rgb = torch.cat([rgb_gt, rgb_pred], dim=concat_dim).cpu().numpy()
         fg_rgb = torch.cat([rgb_gt, fg_rgb_pred], dim=concat_dim).cpu().numpy()
         bg_rgb = torch.cat([rgb_gt, bg_rgb_pred], dim=concat_dim).cpu().numpy()
         fg_mask = torch.cat([rgb_gt * fg_mask, fg_mask], dim=concat_dim).cpu().numpy()
         # bg_mask = torch.cat([rgb_gt * bg_mask, bg_mask], dim=concat_dim).cpu().numpy()
-        negative_entropy = (
-            torch.cat([rgb_gt * negative_entropy, negative_entropy], dim=concat_dim).cpu().numpy()
-        )
 
         # Normal part
         normal_gt = torch.cat([result["normal_gt"] for result in results], dim=1).squeeze(0)
@@ -1305,7 +1277,6 @@ class HSR(pl.LightningModule):
         fg_depth = (fg_depth * 255).astype(np.uint8)
         bg_depth = (bg_depth * 255).astype(np.uint8)
         fg_mask = (fg_mask * 255).astype(np.uint8)
-        negative_entropy = (negative_entropy * 255).astype(np.uint8)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         rgb_pred = torch.moveaxis(rgb_pred, -1, 0)[None, ...]
@@ -1433,7 +1404,6 @@ class HSR(pl.LightningModule):
                     "fg_depth_pred": model_outputs["fg_depth"].detach(),
                     "bg_depth_pred": model_outputs["bg_depth"].detach(),
                     "fg_acc_map": model_outputs["fg_acc_map"].detach(),
-                    "negative_entropy": model_outputs["negative_entropy"].detach(),
                     **batch_targets,
                 }
             )
@@ -1448,9 +1418,6 @@ class HSR(pl.LightningModule):
         fg_mask = torch.cat([result["fg_acc_map"][0] for result in results], dim=0)
         fg_mask = fg_mask.reshape(*img_size, -1)
         fg_mask = fg_mask.repeat(1, 1, 3)
-        negative_entropy = torch.cat([result["negative_entropy"][0] for result in results], dim=0)
-        negative_entropy = negative_entropy.reshape(*img_size, -1)
-        negative_entropy = negative_entropy.repeat(1, 1, 3)
         normal_pred = torch.cat([result["normal_pred"][0] for result in results], dim=0)
         normal_pred = normal_pred.reshape(*img_size, -1)
         fg_normal_pred = torch.cat([result["fg_normal_pred"][0] for result in results], dim=0)
@@ -1477,9 +1444,6 @@ class HSR(pl.LightningModule):
         fg_rgb = torch.cat([rgb_gt, fg_rgb_pred], dim=concat_dim).cpu().numpy()
         bg_rgb = torch.cat([rgb_gt, bg_rgb_pred], dim=concat_dim).cpu().numpy()
         fg_mask = torch.cat([rgb_gt * fg_mask, fg_mask], dim=concat_dim).cpu().numpy()
-        negative_entropy = (
-            torch.cat([rgb_gt * negative_entropy, negative_entropy], dim=concat_dim).cpu().numpy()
-        )
 
         normal_gt = torch.cat([result["normal_gt"] for result in results], dim=1).squeeze(0)
         normal_gt = normal_gt.reshape(*img_size, -1)
@@ -1556,7 +1520,6 @@ class HSR(pl.LightningModule):
         fg_rgb = (fg_rgb * 255).astype(np.uint8)
         bg_rgb = (bg_rgb * 255).astype(np.uint8)
         fg_mask = (fg_mask * 255).astype(np.uint8)
-        negative_entropy = (negative_entropy * 255).astype(np.uint8)
         normal = (normal * 255).astype(np.uint8)
         fg_normal = (fg_normal * 255).astype(np.uint8)
         bg_normal = (bg_normal * 255).astype(np.uint8)

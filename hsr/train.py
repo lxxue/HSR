@@ -63,7 +63,7 @@ def main(cfg):
     progress_bar_callback = TQDMProgressBarNoVNum(refresh_rate=10)
     if cfg.wandb:
         name = f"{cfg.dataset.train.subject}-{cfg.model.name}-{cfg.version}"
-        logger = loggers.WandbLogger(project="human-scene-recon", name=name, version=name)
+        logger = loggers.WandbLogger(project="HSR", name=name, version=name)
     else:
         logger = loggers.TensorBoardLogger(save_dir="tblogger/", name="", version="")
     val_freq = cfg.model.val_steps // len(train_dloader)
