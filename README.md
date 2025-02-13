@@ -89,12 +89,16 @@ You can continue training or only render all frames by uncommenting the correspo
 # extra_args="test_only=True"
 ```
 
+## Preprocessing Custom Data
+
+To preprocess your own data for HSR, we provide the data preprocessing code in our dedicated repository [HSR-data-preprocessing](https://github.com/lxxue/HSR-data-preprocessing). Please follow the instructions there to prepare your data.
+
 ## TODOs
 
 We will gradually complete the codebase and provide more detailed instructions.
 
-- [ ] Code release for preprocessing custom data (Expected: End of December)
-- [ ] Release of NeuMan dataset checkpoints for benchmarking (Expected: Mid-January)
+- [x] Code release for preprocessing custom data
+- [ ] Release of NeuMan dataset checkpoints for benchmarking (Expected: Late Feburary)
 
 ## Acknowledgements
 
