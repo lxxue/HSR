@@ -93,13 +93,6 @@ You can continue training or only render all frames by uncommenting the correspo
 
 To preprocess your own data for HSR, we provide the data preprocessing code in our dedicated repository [HSR-data-preprocessing](https://github.com/lxxue/HSR-data-preprocessing). Please follow the instructions there to prepare your data.
 
-## TODOs
-
-We will gradually complete the codebase and provide more detailed instructions.
-
-- [x] Code release for preprocessing custom data
-- [ ] Release of NeuMan dataset checkpoints for benchmarking (Expected: Late Feburary)
-
 ## Acknowledgements
 
 We use code from other research projects, including [Vid2Avatar](https://github.com/MoyGcc/vid2avatar), [MonoSDF](https://github.com/autonomousvision/monosdf), and [NeuMan](https://github.com/apple/ml-neuman). We sincerely thank the authors for their awesome work! 
